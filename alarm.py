@@ -52,7 +52,11 @@ alarm_model.add_cpds(
 
 alarm_infer = VariableElimination(alarm_model)
 
-print(alarm_infer.query(variables=["JohnCalls"],evidence={"Earthquake":"yes"}))
-q = alarm_infer.query(variables=["JohnCalls", "Earthquake"],evidence={"Burglary":"yes","MaryCalls":"yes"})
-print(q)
+print("Query 1: The probability of Mary Calling given that John called")
+print(alarm_infer.query(variables=["MaryCalls"], evidence={"JohnCalls": "yes"}))
 
+print("\nQuery 2: The probability of both John and Mary calling given Alarm")
+print(alarm_infer.query(variables=["JohnCalls", "MaryCalls"], evidence={"Alarm": "yes"}))
+
+print("\nQuery 3: The probability of Alarm, given that Mary called")
+print(alarm_infer.query(variables=["Alarm"], evidence={"MaryCalls": "yes"}))
