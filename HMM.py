@@ -50,7 +50,18 @@ class HMM:
 
     ## you do this.
     def generate(self, n):
-        """return an n-length observation by randomly sampling from this HMM."""
+        states = ['#']
+        emissions = []
+
+        for _ in range(n):
+            current_state = states[-1]
+            next_state = np.random.choice(list(self.transitions[current_state].keys()), p=list(self.transitions[current_state].values()))
+            states.append(next_state)
+
+            emission = np.random.choice(list(self.emissions[next_state].keys()), p=list(self.emissions[next_state].values()))
+            emissions.append(emission)
+
+        return Observation(states[1:], emissions)
 
     ## you do this: Implement the Viterbi alborithm. Given an Observation (a list of outputs or emissions)
     ## determine the most likely sequence of states.
@@ -60,3 +71,17 @@ class HMM:
         find and return the state sequence that generated
         the output sequence, using the Viterbi algorithm.
         """
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='HMM Generator and Viterbi Algorithm')
+    parser.add_argument('--generate', type=int, metavar='N', help='Generate a sequence of N random observations')
+    parser.add_argument('model', type=str, help='Path to the model basename (without .trans or .emit)')
+
+    args = parser.parse_args()
+
+    hmm = HMM()
+    hmm.load(args.model)
+
+    if args.generate:
+        observation = hmm.generate(args.generate)
+        print(observation)
