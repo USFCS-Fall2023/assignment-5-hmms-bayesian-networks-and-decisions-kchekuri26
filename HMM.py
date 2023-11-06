@@ -55,34 +55,46 @@ class HMM:
 
         for _ in range(n):
             current_state = states[-1]
-            next_state = np.random.choice(list(self.transitions[current_state].keys()), p=list(self.transitions[current_state].values()))
+            next_state = np.random.choice(list(self.transitions[current_state].keys()),
+                                          p=list(self.transitions[current_state].values()))
             states.append(next_state)
 
-            emission = np.random.choice(list(self.emissions[next_state].keys()), p=list(self.emissions[next_state].values()))
+            emission = np.random.choice(list(self.emissions[next_state].keys()),
+                                        p=list(self.emissions[next_state].values()))
             emissions.append(emission)
 
         return Observation(states[1:], emissions)
 
     def forward(self, observation):
-        N = len(observation.outputseq)
         states = list(self.transitions.keys())
-        alpha = {state: [0] * N for state in states}
+        observations = observation.outputseq
 
-        for state in states:
-            if state != '#':
-                alpha[state][0] = self.transitions['#'].get(state, 0) * self.emissions[state].get(observation.outputseq[0], 0)
+        T = len(observations)
+        num_states = len(states)
+        M = np.zeros((T, num_states))
 
-        for n in range(1, N):
-            for next_state in states:
-                if next_state != '#':
-                    sum_alpha = sum(alpha[curr_state][n - 1] * self.transitions[curr_state].get(next_state, 0) for curr_state in states if curr_state != '#')
-                    alpha[next_state][n] = sum_alpha * self.emissions[next_state].get(observation.outputseq[n], 0)
+        # initialization
+        for s in range(num_states):
+            state = states[s]
+            if state in self.transitions['#'] and observations[0] in self.emissions[state]:
+                M[0, s] = self.emissions[state][observations[0]] * self.transitions['#'][state]
 
-        final_probs = {state: alpha[state][-1] for state in states if state != '#'}
-        final_state = max(final_probs, key=final_probs.get)
-        return final_state, final_probs[final_state]
+        # Propagation
+        for t in range(1, T):
+            for s in range(num_states):
+                sum_prob = 0
+                for s2 in range(num_states):
+                    prev_state = states[s2]
+                    curr_state = states[s]
+                    if curr_state in self.transitions[prev_state] and observations[t] in self.emissions[curr_state]:
+                        sum_prob += M[t - 1, s2] * self.transitions[prev_state][curr_state] * \
+                                    self.emissions[curr_state][observations[t]]
+                M[t, s] = sum_prob
 
-
+        final_state_index = np.argmax(M[-1])
+        final_state = states[final_state_index]
+        prob = M[-1, final_state_index]
+        return final_state, prob
 
     ## you do this: Implement the Viterbi alborithm. Given an Observation (a list of outputs or emissions)
     ## determine the most likely sequence of states.
@@ -93,11 +105,13 @@ class HMM:
         the output sequence, using the Viterbi algorithm.
         """
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='HMM Generator and Viterbi Algorithm')
     parser.add_argument('--generate', type=int, metavar='N', help='Generate a sequence of N random observations')
     parser.add_argument('model', type=str, help='Path to the model basename (without .trans or .emit)')
-    parser.add_argument('--forward', type=str, metavar='OBS_FILE', help='Compute the most likely final state for a given sequence of observations from OBS_FILE')
+    parser.add_argument('--forward', type=str, metavar='OBS_FILE',
+                        help='Compute the most likely final state for a given sequence of observations from OBS_FILE')
 
     args = parser.parse_args()
 
