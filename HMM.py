@@ -63,6 +63,27 @@ class HMM:
 
         return Observation(states[1:], emissions)
 
+    def forward(self, observation):
+        N = len(observation.outputseq)
+        states = list(self.transitions.keys())
+        alpha = {state: [0] * N for state in states}
+
+        for state in states:
+            if state != '#':
+                alpha[state][0] = self.transitions['#'].get(state, 0) * self.emissions[state].get(observation.outputseq[0], 0)
+
+        for n in range(1, N):
+            for next_state in states:
+                if next_state != '#':
+                    sum_alpha = sum(alpha[curr_state][n - 1] * self.transitions[curr_state].get(next_state, 0) for curr_state in states if curr_state != '#')
+                    alpha[next_state][n] = sum_alpha * self.emissions[next_state].get(observation.outputseq[n], 0)
+
+        final_probs = {state: alpha[state][-1] for state in states if state != '#'}
+        final_state = max(final_probs, key=final_probs.get)
+        return final_state, final_probs[final_state]
+
+
+
     ## you do this: Implement the Viterbi alborithm. Given an Observation (a list of outputs or emissions)
     ## determine the most likely sequence of states.
 
@@ -76,6 +97,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='HMM Generator and Viterbi Algorithm')
     parser.add_argument('--generate', type=int, metavar='N', help='Generate a sequence of N random observations')
     parser.add_argument('model', type=str, help='Path to the model basename (without .trans or .emit)')
+    parser.add_argument('--forward', type=str, metavar='OBS_FILE', help='Compute the most likely final state for a given sequence of observations from OBS_FILE')
 
     args = parser.parse_args()
 
@@ -85,3 +107,11 @@ if __name__ == '__main__':
     if args.generate:
         observation = hmm.generate(args.generate)
         print(observation)
+
+    if args.forward:
+        with codecs.open(args.forward, 'r', 'utf-8') as file:
+            lines = [line.strip() for line in file.readlines() if line.strip()]
+            for line in lines:
+                obs = Observation([], line.split())
+                final_state, prob = hmm.forward(obs)
+                print(f"Most likely final state for the observation '{line}' is: {final_state} with probability {prob}")
