@@ -100,10 +100,49 @@ class HMM:
     ## determine the most likely sequence of states.
 
     def viterbi(self, observation):
-        """given an observation,
-        find and return the state sequence that generated
-        the output sequence, using the Viterbi algorithm.
-        """
+        states = list(self.transitions.keys())
+        observations = observation.outputseq
+        T = len(observations)
+        num_states = len(states)
+        M = np.zeros((T, num_states))
+        backpointers = np.zeros((T, num_states), dtype=int)
+
+        # initialization
+        for s in range(num_states):
+            state = states[s]
+            if state in self.transitions['#'] and observations[0] in self.emissions[state]:
+                M[0, s] = self.emissions[state][observations[0]] * self.transitions['#'][state]
+                backpointers[0, s] = 0
+
+        # Propagation
+        for t in range(1, T):
+            for s in range(num_states):
+                state = states[s]
+                if state in self.transitions['#'] and observations[t] in self.emissions[state]:
+                    max_prob = 0
+                    max_state = 0
+                    for s2 in range(num_states):
+                        prev_state = states[s2]
+                        if state in self.transitions[prev_state]:
+                            prob = M[t - 1, s2] * self.transitions[prev_state][state] * \
+                                   self.emissions[state][observations[t]]
+                            if prob > max_prob:
+                                max_prob = prob
+                                max_state = s2
+                    M[t, s] = max_prob
+                    backpointers[t, s] = max_state
+
+        # Termination
+        max_final_prob = max(M[T - 1])
+        max_final_state = np.argmax(M[T - 1])
+
+        # Backtracking
+        stateseq = [states[max_final_state]]
+        for t in range(T - 1, 0, -1):
+            max_final_state = backpointers[t, max_final_state]
+            stateseq.append(states[max_final_state])
+        stateseq.reverse()
+        return stateseq, max_final_prob
 
 
 if __name__ == '__main__':
@@ -112,6 +151,7 @@ if __name__ == '__main__':
     parser.add_argument('model', type=str, help='Path to the model basename (without .trans or .emit)')
     parser.add_argument('--forward', type=str, metavar='OBS_FILE',
                         help='Compute the most likely final state for a given sequence of observations from OBS_FILE')
+    parser.add_argument('--viterbi', type=str, metavar='OBS_FILE', help='Compute the most likely state sequence for a given sequence of observations from OBS_FILE')
 
     args = parser.parse_args()
 
@@ -129,3 +169,11 @@ if __name__ == '__main__':
                 obs = Observation([], line.split())
                 final_state, prob = hmm.forward(obs)
                 print(f"Most likely final state for the observation '{line}' is: {final_state} with probability {prob}")
+
+    if args.viterbi:
+        with codecs.open(args.viterbi, 'r', 'utf-8') as file:
+            lines = [line.strip() for line in file.readlines() if line.strip()]
+            for line in lines:
+                obs = Observation([], line.split())
+                stateseq, prob = hmm.viterbi(obs)
+                print(f"Most likely state sequence for the observation '{line}' is: {' '.join(stateseq)} with probability {prob}")
