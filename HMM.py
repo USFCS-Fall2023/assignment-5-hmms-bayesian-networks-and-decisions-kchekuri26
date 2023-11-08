@@ -177,3 +177,4 @@ if __name__ == '__main__':
                 obs = Observation([], line.split())
                 stateseq, prob = hmm.viterbi(obs)
                 print(f"Most likely state sequence for the observation '{line}' is: {' '.join(stateseq)} with probability {prob}")
+
